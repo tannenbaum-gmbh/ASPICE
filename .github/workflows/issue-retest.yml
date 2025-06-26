@@ -1,0 +1,39 @@
+name: Issue Retest Trigger
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  check-and-trigger:
+    name: Check for #retest and Trigger CI
+    runs-on: ubuntu-latest
+    if: contains(github.event.comment.body, '#retest')
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+      
+      - name: Trigger CI Workflow
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          event-type: issue-retest
+          client-payload: |
+            {
+              "issue_number": "${{ github.event.issue.number }}",
+              "issue_title": "${{ github.event.issue.title }}",
+              "user": "${{ github.event.comment.user.login }}"
+            }
+      
+      - name: Add comment to issue
+        uses: peter-evans/create-or-update-comment@v2
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          body: |
+            🚀 CI pipeline has been triggered due to #retest command.
+            
+            This will run the full test suite to verify if the issue has been resolved.
+            
+            [View workflow run](https://github.com/${{ github.repository }}/actions/workflows/ci.yml)
