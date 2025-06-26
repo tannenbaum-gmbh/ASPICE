@@ -6,6 +6,20 @@ on:
       - 'releases/**'
 
 jobs:
+  self-hosted-env-check:
+    name: Self-Hosted Environment Check
+    runs-on: [self-hosted, ASPICE]
+    steps:
+      - name: Print Host Information
+        run: |
+          echo "Running on self-hosted ASPICE runner"
+          echo "Hostname: $(hostname)"
+          echo "OS details: $(uname -a)"
+          echo "OS Version: $(cat /etc/os-release | grep PRETTY_NAME | cut -d= -f2 | tr -d '"')"
+          echo "CPU Info: $(grep "model name" /proc/cpuinfo | head -1 | cut -d: -f2 | sed 's/^[ \t]*//')"
+          echo "Memory: $(free -h | grep Mem | awk '{print $2}')"
+          echo "Disk space: $(df -h / | awk 'NR==2 {print $2}')"
+          
   check-source-branch:
     name: Check Source Branch
     runs-on: ubuntu-latest
@@ -26,14 +40,6 @@ jobs:
       options: --user root
     steps:
       - uses: actions/checkout@v3
-      
-      - name: Install Dependencies
-        run: |
-          apt-get update
-          apt-get install -y bc make jq
-          go install golang.org/x/tools/cmd/cover@latest
-          go install github.com/securego/gosec/v2/cmd/gosec@latest
-          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
           
       - name: Test with coverage
         run: make test-coverage
