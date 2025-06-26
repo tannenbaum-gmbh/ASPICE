@@ -23,11 +23,13 @@ make run ARGS="add 5 3"
 │       └── main.go           # Main application
 ├── .github/
 │   └── workflows/
-│       ├── ci.yml            # CI pipeline configuration
-│       └── issue-retest.yml  # Issue retest workflow
+│       ├── ci.yml                  # Main CI pipeline configuration
+│       ├── issue-retest.yml        # Issue retest workflow
+│       └── release-validation.yml  # Release validation workflow
 ├── .devcontainer/            # Development container configuration
 │   ├── devcontainer.json
 │   └── Dockerfile
+├── CHANGELOG.md              # Record of changes
 ├── Makefile                  # Build automation
 └── go.mod                    # Go module definition
 ```
@@ -45,11 +47,13 @@ The calculator provides the following operations:
 1. **Traceability**: 
    - CI pipeline enforces code reviews through pull requests
    - Pull requests can be mapped to requirements
+   - Special release validation for dev to release branch PRs
 
 2. **Verification and Validation**: 
    - Automated testing with coverage reporting
    - Static code analysis through linting
    - Security scanning
+   - Enforced coverage thresholds for release candidates
 
 3. **Documentation**: 
    - Enforced documentation standards through automated checks
@@ -63,9 +67,11 @@ The calculator provides the following operations:
    - Dependency verification
    - Multiple verification steps
 
-## CI Pipeline
+## CI Pipelines
 
-The CI pipeline is triggered on:
+### Main CI Pipeline
+
+The main CI pipeline is triggered on:
 - Push to main/master branches
 - Push to release/* branches
 - Pull requests to main/master and release/* branches
@@ -75,8 +81,20 @@ The pipeline includes the following jobs:
 1. **Lint**: Code quality and formatting checks
 2. **Build**: Compilation and artifact generation
 3. **Test**: Unit testing with coverage reporting
-4. **Documentation**: Documentation standards verification
-5. **Security Scan**: Security vulnerability detection
+4. **Security Scan**: Security vulnerability detection
+
+### Release Validation Pipeline
+
+A specialized validation pipeline triggers only for:
+- Pull requests from `dev/*` branches to `release/*` branches
+
+This pipeline includes stricter validations:
+1. **Source Branch Verification**: Ensures PR is from a dev branch
+2. **Lint**: Enhanced code quality and formatting checks
+3. **Build**: Artifact generation with release-specific naming
+4. **Test**: Enforced minimum test coverage (80%)
+5. **Security Scan**: Blocks release if high-severity issues exist
+6. **Release Readiness**: Documentation and changelog verification
 
 ## How to Use
 
@@ -122,6 +140,19 @@ Or directly:
 ```bash
 go test ./...
 ```
+
+## Branch Structure
+
+This project follows a structured branching model to support ASPICE compliance:
+
+- `main` / `master`: Primary production branch
+- `release/*`: Release branches (e.g., `release/v1.0`, `release/v2.3`)
+- `dev/*`: Development branches (e.g., `dev/feature-x`, `dev/bugfix-y`)
+
+The CI pipelines enforce certain rules:
+- All code must pass basic CI before merging to any branch
+- Only `dev/*` branches can be merged to `release/*` branches
+- Special validation rules apply when promoting from dev to release
 
 ## Issue Retest Feature
 
