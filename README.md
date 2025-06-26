@@ -54,6 +54,7 @@ The CI pipeline is triggered on:
 - Push to main/master branches
 - Push to release/* branches
 - Pull requests to main/master and release/* branches
+- When an issue comment contains '#retest'
 
 The pipeline includes the following jobs:
 1. **Lint**: Code quality and formatting checks
@@ -84,6 +85,19 @@ go build -o calc ./cmd/calc
 ```bash
 go test ./...
 ```
+
+## Issue Retest Feature
+
+This project includes a special feature to rerun the CI pipeline directly from GitHub issues:
+
+1. When someone comments on an issue with the text '#retest', it automatically triggers the CI pipeline
+2. The system will comment on the issue to acknowledge the retest request
+3. When the tests complete, the results are automatically posted back to the issue
+
+This feature is useful for:
+- Verifying bug fixes without requiring code changes
+- Reproducing intermittent test failures
+- Validating the current state of the codebase against reported issues
 
 ## License
 

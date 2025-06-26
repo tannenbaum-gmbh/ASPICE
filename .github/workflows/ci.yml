@@ -5,6 +5,8 @@ on:
   push:
   pull_request:
     branches: [ main, master, release/** ]
+  repository_dispatch:
+    types: [issue-retest]
 
 jobs:
   lint:
@@ -104,3 +106,29 @@ jobs:
           name: security-scan-results
           path: results.json
           if-no-files-found: error
+
+  notify-issue:
+    name: Notify Issue
+    runs-on: ubuntu-latest
+    needs: [lint, build, test, security-scan]
+    if: github.event_name == 'repository_dispatch' && github.event.client_payload.issue_number != ''
+    steps:
+      - name: Report test results back to issue
+        uses: peter-evans/create-or-update-comment@v2
+        with:
+          issue-number: ${{ github.event.client_payload.issue_number }}
+          body: |
+            ## ✅ CI Pipeline Completed
+            
+            The CI pipeline triggered by #retest has completed successfully.
+            
+            **Issue:** #${{ github.event.client_payload.issue_number }} - ${{ github.event.client_payload.issue_title }}
+            **Triggered by:** @${{ github.event.client_payload.user }}
+            
+            ### Results Summary:
+            - ✅ Lint: Passed
+            - ✅ Build: Passed
+            - ✅ Tests: Passed
+            - ✅ Security Scan: Passed
+            
+            [View detailed results](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
