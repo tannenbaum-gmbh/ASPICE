@@ -1,0 +1,126 @@
+name: ASPICE CI Pipeline
+
+on:
+  push:
+  pull_request:
+    branches: [ main, master, release/** ]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+          
+      - name: Verify dependencies
+        run: go mod verify
+        
+      - name: Install golangci-lint
+        run: |
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+          
+      - name: Run golangci-lint
+        run: golangci-lint run --timeout=5m
+        
+      - name: Format check
+        run: |
+          if [ "$(gofmt -l . | wc -l)" -gt 0 ]; then
+            echo "The following files are not formatted properly:"
+            gofmt -l .
+            exit 1
+          fi
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+          
+      - name: Build
+        run: go build -v ./...
+        
+      - name: Archive production artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: binary
+          path: |
+            ASPICE
+            !ASPICE/**/*.md
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+          
+      - name: Test with coverage
+        run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+        
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.txt
+          fail_ci_if_error: true
+
+  documentation:
+    name: Documentation Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+          
+      - name: Install godoc
+        run: go install golang.org/x/tools/cmd/godoc@latest
+        
+      - name: Check documentation coverage
+        run: |
+          go list -f '{{.Dir}}' ./... | xargs -I{} bash -c "[ -f {}/*.go ] && grep -q '^// [A-Z]' {}/*.go"
+          if [ $? -ne 0 ]; then
+            echo "Some Go files are missing documentation comments"
+            exit 1
+          fi
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+          
+      - name: Install gosec
+        run: go install github.com/securego/gosec/v2/cmd/gosec@latest
+        
+      - name: Run gosec
+        run: gosec -fmt=json -out=results.json ./...
+        
+      - name: Upload security scan results
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-scan-results
+          path: results.json
+          if-no-files-found: error

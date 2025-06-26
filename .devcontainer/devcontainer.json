@@ -1,0 +1,49 @@
+{
+    "name": "Go",
+    "image": "mcr.microsoft.com/devcontainers/go:1-1.21-bullseye",
+    "features": {
+        "ghcr.io/devcontainers/features/go:1.3.2": {
+            "version": "1.21"
+        },
+        "ghcr.io/devcontainers/features/git:1": {},
+        "ghcr.io/devcontainers/features/github-cli:1": {}
+    },
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "go.toolsManagement.checkForUpdates": "local",
+                "go.useLanguageServer": true,
+                "go.gopath": "/go",
+                "go.goroot": "/usr/local/go",
+                "go.lintTool": "golangci-lint",
+                "go.lintFlags": [
+                    "--fast"
+                ],
+                "go.formatTool": "goimports",
+                "editor.formatOnSave": true,
+                "editor.codeActionsOnSave": {
+                    "source.organizeImports": "explicit"
+                }
+            },
+            "extensions": [
+                "golang.go",
+                "ms-vscode.vscode-typescript-tslint-plugin",
+                "eamodio.gitlens",
+                "github.vscode-github-actions",
+                "github.vscode-pull-request-github",
+                "redhat.vscode-yaml"
+            ]
+        }
+    },
+    "remoteUser": "vscode",
+    "hostRequirements": {
+        "cpus": 4,
+        "memory": "8gb"
+    },
+    "containerEnv": {
+        "GO111MODULE": "on"
+    },
+    "remoteEnv": {
+        "PATH": "${containerEnv:PATH}:/go/bin"
+    }
+}
