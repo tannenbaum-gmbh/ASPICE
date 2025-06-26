@@ -1,6 +1,7 @@
 name: ASPICE CI Pipeline
 
 on:
+  workflow_dispatch:
   push:
   pull_request:
     branches: [ main, master, release/** ]
