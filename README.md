@@ -2,6 +2,16 @@
 
 This project demonstrates CI capabilities of GitHub Actions for ASPICE software lifecycle. It includes a simple Golang calculator application with unit tests and a CI pipeline that runs on various triggers.
 
+## Quick Start
+
+```bash
+# Build the calculator
+make build
+
+# Run the calculator
+make run ARGS="add 5 3"
+```
+
 ## Project Structure
 
 ```
@@ -13,7 +23,12 @@ This project demonstrates CI capabilities of GitHub Actions for ASPICE software 
 │       └── main.go           # Main application
 ├── .github/
 │   └── workflows/
-│       └── ci.yml            # CI pipeline configuration
+│       ├── ci.yml            # CI pipeline configuration
+│       └── issue-retest.yml  # Issue retest workflow
+├── .devcontainer/            # Development container configuration
+│   ├── devcontainer.json
+│   └── Dockerfile
+├── Makefile                  # Build automation
 └── go.mod                    # Go module definition
 ```
 
@@ -67,12 +82,27 @@ The pipeline includes the following jobs:
 
 ### Building the Application
 
+Using Make:
+```bash
+make build
+```
+
+Or directly with Go:
 ```bash
 go build -o calc ./cmd/calc
 ```
 
 ### Running the Application
 
+Using Make:
+```bash
+make run ARGS="add 5 3"
+make run ARGS="subtract 10 4"
+make run ARGS="multiply 6 7"
+make run ARGS="divide 20 5"
+```
+
+Or directly:
 ```bash
 ./calc add 5 3
 ./calc subtract 10 4
@@ -82,6 +112,13 @@ go build -o calc ./cmd/calc
 
 ### Running Tests
 
+Using Make:
+```bash
+make test         # Run tests
+make test-coverage # Run tests with coverage
+```
+
+Or directly:
 ```bash
 go test ./...
 ```

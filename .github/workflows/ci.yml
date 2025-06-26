@@ -50,16 +50,18 @@ jobs:
         with:
           go-version: '1.21'
           
-      - name: Build
+      - name: Build packages
         run: go build -v ./...
+        
+      - name: Build executable
+        run: make build
         
       - name: Archive production artifacts
         uses: actions/upload-artifact@v4
         with:
           name: binary
           path: |
-            ASPICE
-            !ASPICE/**/*.md
+            calc
 
   test:
     name: Test
@@ -74,7 +76,7 @@ jobs:
           go-version: '1.21'
           
       - name: Test with coverage
-        run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+        run: make test-coverage
         
       - name: Upload coverage to Codecov
         uses: actions/upload-artifact@v4
@@ -98,7 +100,7 @@ jobs:
         run: go install github.com/securego/gosec/v2/cmd/gosec@latest
         
       - name: Run gosec
-        run: gosec -fmt=json -out=results.json ./...
+        run: make security
         
       - name: Upload security scan results
         uses: actions/upload-artifact@v4
