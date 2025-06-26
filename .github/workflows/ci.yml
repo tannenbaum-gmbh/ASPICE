@@ -8,6 +8,9 @@ on:
   repository_dispatch:
     types: [issue-retest]
 
+permissions:
+  issues: write
+
 jobs:
   lint:
     name: Lint
