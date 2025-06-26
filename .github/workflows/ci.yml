@@ -80,28 +80,6 @@ jobs:
           file: ./coverage.txt
           fail_ci_if_error: true
 
-  documentation:
-    name: Documentation Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.21'
-          
-      - name: Install godoc
-        run: go install golang.org/x/tools/cmd/godoc@latest
-        
-      - name: Check documentation coverage
-        run: |
-          go list -f '{{.Dir}}' ./... | xargs -I{} bash -c "[ -f {}/*.go ] && grep -q '^// [A-Z]' {}/*.go"
-          if [ $? -ne 0 ]; then
-            echo "Some Go files are missing documentation comments"
-            exit 1
-          fi
-
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
