@@ -88,13 +88,15 @@ The pipeline includes the following jobs:
 A specialized validation pipeline triggers only for:
 - Pull requests from `dev/*` branches to `release/*` branches
 
-This pipeline includes stricter validations:
+This pipeline uses containerized jobs for consistent, isolated environments and includes stricter validations:
 1. **Source Branch Verification**: Ensures PR is from a dev branch
-2. **Lint**: Enhanced code quality and formatting checks
-3. **Build**: Artifact generation with release-specific naming
-4. **Test**: Enforced minimum test coverage (80%)
-5. **Security Scan**: Blocks release if high-severity issues exist
-6. **Release Readiness**: Documentation and changelog verification
+2. **Containerized Testing**: Test execution in an isolated Docker container
+3. **Enforced Quality Gates**: 
+   - Minimum test coverage (80%)
+   - No high-severity security issues
+   - Complete documentation requirements
+4. **Artifacts Generation**: Collects all validation outputs
+5. **PR Status Update**: Posts results directly to the PR
 
 ## How to Use
 
