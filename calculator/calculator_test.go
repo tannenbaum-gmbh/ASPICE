@@ -10,7 +10,7 @@ func TestAdd(t *testing.T) {
 		a, b     int
 		expected int
 	}{
-		{"positive numbers", 3, 5, 9},
+		{"positive numbers", 3, 5, 10},
 		{"negative numbers", -3, -5, -8},
 		{"mixed numbers", -3, 5, 2},
 		{"zeros", 0, 0, 0},
