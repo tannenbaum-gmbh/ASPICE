@@ -3,7 +3,7 @@ name: ASPICE Release PR Validation
 on:
   pull_request:
     branches: 
-      - 'release/**'
+      - 'releases/**'
 
 jobs:
   check-source-branch:
@@ -15,7 +15,7 @@ jobs:
         run: |
           echo "Source branch: ${{ github.head_ref }}"
           echo "Target branch: ${{ github.base_ref }}"
-          echo "This workflow only runs for PRs from dev/* branches to release/* branches"
+          echo "This workflow only runs for PRs from dev/* branches to releases/* branches"
 
   release-validation:
     name: Release Validation
