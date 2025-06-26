@@ -8,7 +8,8 @@ on:
 jobs:
   self-hosted-env-check:
     name: Self-Hosted Environment Check
-    runs-on: [self-hosted, ASPICE]
+    runs-on: 
+        group: ASPICE
     steps:
       - name: Print Host Information
         run: |
