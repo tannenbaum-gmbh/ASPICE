@@ -9,6 +9,7 @@ on:
     types: [issue-retest]
 
 permissions:
+  contents: read
   issues: write
 
 jobs:
