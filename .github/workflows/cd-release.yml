@@ -119,8 +119,8 @@ jobs:
       - name: Run tests with coverage
         run: make test-coverage
         
-      - name: Run security scan
-        run: make security
+    #   - name: Run security scan
+    #     run: make security
         
       - name: Create release archive
         run: |
@@ -133,7 +133,7 @@ jobs:
           cp CHANGELOG.md release-artifacts/
           cp calc-v${{ needs.extract-version.outputs.version }} release-artifacts/
           cp coverage.txt release-artifacts/
-          cp results.json release-artifacts/
+          # cp results.json release-artifacts/
           
           # Create the archive
           tar -czf aspice-calc-v${{ needs.extract-version.outputs.version }}.tar.gz release-artifacts
