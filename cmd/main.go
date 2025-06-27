@@ -12,7 +12,7 @@ import (
 func main() {
 	if len(os.Args) != 4 {
 		fmt.Println("Usage: calc <operation> <number1> <number2>")
-		fmt.Println("Operations: add, subtract, multiply, divide")
+		fmt.Println("Operations are: add, subtract, multiply, divide")
 		os.Exit(1)
 	}
 
