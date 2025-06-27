@@ -23,11 +23,14 @@ make run ARGS="add 5 3"
 │       └── main.go           # Main application
 ├── .github/
 │   └── workflows/
-│       ├── ci.yml            # CI pipeline configuration
-│       └── issue-retest.yml  # Issue retest workflow
+│       ├── ci.yml                  # Main CI pipeline configuration
+│       ├── issue-retest.yml        # Issue retest workflow
+│       ├── release-validation.yml  # Release validation workflow
+│       └── cd-release.yml          # CD pipeline for releases
 ├── .devcontainer/            # Development container configuration
 │   ├── devcontainer.json
 │   └── Dockerfile
+├── CHANGELOG.md              # Record of changes
 ├── Makefile                  # Build automation
 └── go.mod                    # Go module definition
 ```
@@ -45,11 +48,13 @@ The calculator provides the following operations:
 1. **Traceability**: 
    - CI pipeline enforces code reviews through pull requests
    - Pull requests can be mapped to requirements
+   - Special release validation for dev to release branch PRs
 
 2. **Verification and Validation**: 
    - Automated testing with coverage reporting
    - Static code analysis through linting
    - Security scanning
+   - Enforced coverage thresholds for release candidates
 
 3. **Documentation**: 
    - Enforced documentation standards through automated checks
@@ -57,15 +62,19 @@ The calculator provides the following operations:
 4. **Version Control**: 
    - Special handling for release branches
    - Artifact generation and storage
+   - Automated GitHub releases with versioning
 
 5. **Quality Assurance**:
    - Code format checking
    - Dependency verification
    - Multiple verification steps
+   - Deployment validation and reporting
 
-## CI Pipeline
+## CI Pipelines
 
-The CI pipeline is triggered on:
+### Main CI Pipeline
+
+The main CI pipeline is triggered on:
 - Push to main/master branches
 - Push to release/* branches
 - Pull requests to main/master and release/* branches
@@ -75,8 +84,39 @@ The pipeline includes the following jobs:
 1. **Lint**: Code quality and formatting checks
 2. **Build**: Compilation and artifact generation
 3. **Test**: Unit testing with coverage reporting
-4. **Documentation**: Documentation standards verification
-5. **Security Scan**: Security vulnerability detection
+4. **Security Scan**: Security vulnerability detection
+
+### Release Validation Pipeline
+
+A specialized validation pipeline triggers only for:
+- Pull requests from `dev/*` branches to `release/*` branches
+
+This pipeline uses containerized jobs for consistent, isolated environments and includes stricter validations:
+1. **Source Branch Verification**: Ensures PR is from a dev branch
+2. **Containerized Testing**: Test execution in an isolated Docker container
+3. **Enforced Quality Gates**: 
+   - Minimum test coverage (80%)
+   - No high-severity security issues
+   - Complete documentation requirements
+4. **Artifacts Generation**: Collects all validation outputs
+5. **PR Status Update**: Posts results directly to the PR
+
+### Continuous Deployment Pipeline
+
+An automated CD pipeline triggers on:
+- Pushes to `releases/vX.Y` branches (where X.Y is the major.minor version)
+
+This pipeline automates the release process:
+1. **Automatic Patch Versioning**: Increments patch version number (X.Y.Z+1)
+2. **CHANGELOG Updates**: Adds version entry if not present
+3. **Artifact Building**: Creates release binaries and packages
+4. **Documentation Generation**: Creates comprehensive release notes
+5. **GitHub Release Creation**: Publishes official GitHub release with:
+   - Binary executables
+   - Source code archives (.tar.gz and .zip)
+   - Test coverage reports
+   - Security scan results
+5. **Deployment Notification**: Creates a deployment report issue
 
 ## How to Use
 
@@ -122,6 +162,21 @@ Or directly:
 ```bash
 go test ./...
 ```
+
+## Branch Structure
+
+This project follows a structured branching model to support ASPICE compliance:
+
+- `main` / `master`: Primary production branch
+- `releases/vX.Y`: Release branches with major.minor versions (e.g., `releases/v1.0`, `releases/v2.3`)
+  - Patch versions are automatically incremented on each push (e.g., v1.0.0, v1.0.1, v1.0.2)
+- `dev/*`: Development branches (e.g., `dev/feature-x`, `dev/bugfix-y`)
+
+The CI/CD pipelines enforce certain rules:
+- All code must pass basic CI before merging to any branch
+- Only `dev/*` branches can be merged to `releases/vX.Y` branches
+- Special validation rules apply when promoting from dev to release
+- Pushes to release branches automatically create versioned releases
 
 ## Issue Retest Feature
 

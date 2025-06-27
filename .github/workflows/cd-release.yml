@@ -1,0 +1,231 @@
+name: ASPICE CD Pipeline
+
+on:
+  push:
+    branches:
+      - 'releases/v*'
+
+permissions:
+  contents: write
+  discussions: write
+  issues: write
+
+jobs:
+  extract-version:
+    name: Extract Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get-version.outputs.version }}
+      release_name: ${{ steps.get-version.outputs.release_name }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          
+      - name: Get version from branch
+        id: get-version
+        run: |
+          BRANCH_NAME=${GITHUB_REF#refs/heads/}
+          # Extract major.minor from branch name (releases/vX.Y -> X.Y)
+          BASE_VERSION=${BRANCH_NAME#releases/v}
+          
+          # Get the latest tag for this base version to determine next patch
+          git fetch --tags
+          
+          # Find the latest tag for this major.minor version
+          LATEST_TAG=$(git tag -l "v${BASE_VERSION}.*" | sort -V | tail -n 1)
+          
+          if [ -z "$LATEST_TAG" ]; then
+            # No previous tag, start with patch version 0
+            NEXT_PATCH=0
+          else
+            # Extract patch version and increment it
+            CURRENT_PATCH=${LATEST_TAG##*.}
+            NEXT_PATCH=$((CURRENT_PATCH + 1))
+          fi
+          
+          # Create the full version
+          VERSION="${BASE_VERSION}.${NEXT_PATCH}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          
+          # Extract release name from CHANGELOG if it exists for this version
+          if grep -q "## \[$VERSION\]" CHANGELOG.md; then
+            RELEASE_NAME=$(grep -A 1 "## \[$VERSION\]" CHANGELOG.md | tail -1)
+            echo "release_name=$RELEASE_NAME" >> $GITHUB_OUTPUT
+          else
+            echo "release_name=Release $VERSION" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "Branch: $BRANCH_NAME"
+          echo "Base version (major.minor): $BASE_VERSION"
+          echo "Previous tag: $LATEST_TAG"
+          echo "Next patch version: $NEXT_PATCH"
+          echo "Full version to release: $VERSION"
+          
+      - name: Update CHANGELOG if needed
+        id: update-changelog
+        run: |
+          VERSION="${{ steps.get-version.outputs.version }}"
+          
+          # Check if version section exists in CHANGELOG
+          if ! grep -q "## \[$VERSION\]" CHANGELOG.md; then
+            echo "Adding new version $VERSION to CHANGELOG.md"
+            
+            # Create a new version entry in CHANGELOG
+            TODAY=$(date +%Y-%m-%d)
+            sed -i "s/## \[Unreleased\]/## [Unreleased]\n\n## [$VERSION] - $TODAY/" CHANGELOG.md
+            
+            # Add commit information to the changelog
+            echo "Extracting commit information for changelog"
+            BASE_VERSION=${VERSION%.*}
+            LATEST_TAG=$(git tag -l "v${BASE_VERSION}.*" | sort -V | tail -n 1)
+            
+            if [ -n "$LATEST_TAG" ]; then
+              echo "Getting changes since $LATEST_TAG"
+              # Extract commits since last tag
+              git log --pretty=format:"- %s" $LATEST_TAG..HEAD >> /tmp/changes.txt
+            else
+              echo "No previous tag found, including all relevant commits"
+              # Just get recent commits
+              git log --pretty=format:"- %s" -n 10 >> /tmp/changes.txt
+            fi
+            
+            # Insert commit information after the version header
+            sed -i "/## \[$VERSION\] - $TODAY/r /tmp/changes.txt" CHANGELOG.md
+          else
+            echo "Version $VERSION already exists in CHANGELOG.md"
+          fi
+  
+  build:
+    name: Build Release Artifacts
+    runs-on: ubuntu-latest
+    needs: extract-version
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+          
+      - name: Build release binary
+        run: |
+          make build
+          # Rename the binary to include version
+          mv calc calc-v${{ needs.extract-version.outputs.version }}
+          
+      - name: Run tests with coverage
+        run: make test-coverage
+        
+      - name: Run security scan
+        run: make security
+        
+      - name: Create release archive
+        run: |
+          mkdir -p release-artifacts
+          cp -r calculator release-artifacts/
+          cp -r cmd release-artifacts/
+          cp go.mod release-artifacts/
+          cp Makefile release-artifacts/
+          cp README.md release-artifacts/
+          cp CHANGELOG.md release-artifacts/
+          cp calc-v${{ needs.extract-version.outputs.version }} release-artifacts/
+          cp coverage.txt release-artifacts/
+          cp results.json release-artifacts/
+          
+          # Create the archive
+          tar -czf aspice-calc-v${{ needs.extract-version.outputs.version }}.tar.gz release-artifacts
+          zip -r aspice-calc-v${{ needs.extract-version.outputs.version }}.zip release-artifacts
+        
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: |
+            aspice-calc-v${{ needs.extract-version.outputs.version }}.tar.gz
+            aspice-calc-v${{ needs.extract-version.outputs.version }}.zip
+            calc-v${{ needs.extract-version.outputs.version }}
+            coverage.txt
+            results.json
+  
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [extract-version, build]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+          
+      - name: Generate release notes
+        run: |
+          echo "# Release ${{ needs.extract-version.outputs.version }}" > RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "${{ needs.extract-version.outputs.release_name }}" >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          
+          echo "## Deployment Details" >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "- **Version**: v${{ needs.extract-version.outputs.version }}" >> RELEASE_NOTES.md
+          echo "- **Branch**: ${{ github.ref_name }}" >> RELEASE_NOTES.md
+          echo "- **Deployment Date**: $(date -u +'%Y-%m-%d %H:%M UTC')" >> RELEASE_NOTES.md
+          echo "- **Deployed By**: @${{ github.actor }}" >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          
+          echo "## Changes" >> RELEASE_NOTES.md
+          if grep -q "## \[${{ needs.extract-version.outputs.version }}\]" CHANGELOG.md; then
+            # Extract section for this version from CHANGELOG
+            sed -n "/## \[${{ needs.extract-version.outputs.version }}\]/,/## \[/p" CHANGELOG.md | sed '$d' | tail -n +2 >> RELEASE_NOTES.md
+          else
+            echo "See CHANGELOG.md for details" >> RELEASE_NOTES.md
+          fi
+          
+          echo "" >> RELEASE_NOTES.md
+          echo "## Test Coverage Summary" >> RELEASE_NOTES.md
+          echo '```' >> RELEASE_NOTES.md
+          go tool cover -func=coverage.txt >> RELEASE_NOTES.md
+          echo '```' >> RELEASE_NOTES.md
+          
+          echo "" >> RELEASE_NOTES.md
+          echo "## Security Scan Summary" >> RELEASE_NOTES.md
+          echo '```' >> RELEASE_NOTES.md
+          cat results.json | jq -r '.Stats' >> RELEASE_NOTES.md
+          echo '```' >> RELEASE_NOTES.md
+          
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: "ASPICE Calculator v${{ needs.extract-version.outputs.version }}"
+          tag_name: "v${{ needs.extract-version.outputs.version }}"
+          body_path: RELEASE_NOTES.md
+          draft: false
+          prerelease: false
+          files: |
+            aspice-calc-v${{ needs.extract-version.outputs.version }}.tar.gz
+            aspice-calc-v${{ needs.extract-version.outputs.version }}.zip
+            calc-v${{ needs.extract-version.outputs.version }}
+            coverage.txt
+            results.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+  deployment-notification:
+    name: Deployment Notification
+    runs-on: ubuntu-latest
+    needs: [extract-version, create-release]
+    steps:
+      - name: Create deployment issue
+        uses: peter-evans/create-issue-from-file@v4
+        with:
+          title: "Deployment Report: v${{ needs.extract-version.outputs.version }}"
+          content-filepath: RELEASE_NOTES.md
+          labels: |
+            deployment
+            release
+            documentation
